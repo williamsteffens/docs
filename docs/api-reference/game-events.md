@@ -26,6 +26,14 @@ public HookResult OnPlayerHeroChanged(PlayerHeroChangedEvent args)
 }
 ```
 
+### Typed Event Classes
+
+For every event in the game's `.gameevents` schema, the SDK source-generates a typed class named after the event in PascalCase (`player_hero_changed` → `PlayerHeroChangedEvent`, `player_death` → `PlayerDeathEvent`), with one property per field. Your handler can take either the typed class or the untyped `GameEvent` (with `GetString`/`GetInt`/`GetFloat`/`GetBool`/`GetPlayerPawn`/`GetPlayerController`/`GetEHandle` accessors).
+
+Fields typed `player_controller_and_pawn` in the schema (e.g. `player_death.userid`/`attacker`) generate **split properties** — `UseridController`/`UseridPawn`, `AttackerController`/`AttackerPawn` — there is no single `Userid` property on those events. Fields typed `player_pawn` (like `player_hero_changed.userid`) generate a single pawn-typed property.
+
+You can also subscribe dynamically without an attribute via `GameEvents.AddListener(name, handler)` / `GameEvents.RemoveListener(...)`.
+
 ## GameEventWriter
 
 Wraps a newly created game event for setting fields and firing.
@@ -58,9 +66,9 @@ if (ev != null)
 | `player_death` | `userid`, `attacker` | Fires on hero death |
 | `player_spawn` | `userid` | See warning below — fires **before** the pawn is fully materialized on the first spawn |
 | `player_hero_changed` | `userid` | More reliable than `player_spawn` for post-hero-select logic |
-| `player_used_ability` | `userid`, `abilityname`, `Annotation` | Fires for every ability activation including shots (`citadel_weapon_*`) and melee (`ability_melee_*`) |
-| `ability_added` | `userid`, `abilityname` | Fires when an ability/item is granted — use this to detect item purchases |
-| `game_state_changed` | — | Fires at major match transitions, including end-of-match |
+| `player_used_ability` | `player`, `caster`, `abilityname`, `annotation` | Fires for every ability activation including shots (`citadel_weapon_*`) and melee (`ability_melee_*`) |
+| `ability_added` | `userid`, `ability` (ehandle) | Fires when an ability/item is granted — use this to detect item purchases |
+| `game_state_changed` | `game_state_new` | Fires at major match transitions, including end-of-match |
 
 The full list of Source 2 events shipped by Deadlock is available at [SteamTracking-Deadlock/resource/core.gameevents](https://github.com/SteamTracking/GameTracking-Deadlock/blob/master/game/core/pak01_dir/resource/core.gameevents) and [game.gameevents](https://github.com/SteamTracking/GameTracking-Deadlock/blob/master/game/citadel/pak01_dir/resource/game.gameevents). These files list every event name and its field schema.
 
@@ -75,8 +83,8 @@ public HookResult OnAbility(GameEvent ev)
     var name = ev.GetString("abilityname", "");
     if (!name.StartsWith("ability_melee")) return HookResult.Continue;
 
-    // Annotation tells heavy vs light melee
-    var kind = ev.GetString("Annotation", ""); // "heavy_melee" or "light_melee"
+    // annotation tells heavy vs light melee (event keys are case-sensitive)
+    var kind = ev.GetString("annotation", ""); // "heavy_melee" or "light_melee"
     Console.WriteLine($"Melee attack: {kind}");
     return HookResult.Continue;
 }
@@ -128,7 +136,7 @@ The `player_spawn` event fires before the pawn is fully populated the first time
 [GameEventHandler("player_hero_changed")]
 public HookResult OnPlayerHeroChanged(PlayerHeroChangedEvent args)
 {
-    var pawn = ev.GetPlayerPawn("userid")?.As<CCitadelPlayerPawn>();
+    var pawn = args.Userid?.As<CCitadelPlayerPawn>();
     if (pawn == null) return HookResult.Continue;
     // safe to inspect pawn's hero-specific state here
     return HookResult.Continue;

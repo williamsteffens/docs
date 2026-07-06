@@ -9,14 +9,26 @@ sidebar_label: "Configuration"
 
 Plugins can declare JSON-serialized configuration using `IConfig` and the `[PluginConfig]` attribute.
 
+## Config File Location & Format
+
+Config files live in a `configs/` directory **next to** `managed/` and are keyed by your plugin's **class name**:
+
+```
+game/bin/win64/configs/<PluginClassName>/<PluginClassName>.jsonc
+```
+
+The format is **JSONC** — standard JSON, but comments are allowed (and skipped on read). Deadworks writes the file automatically with your config's default values the first time the plugin loads, prepending a `// Configuration for <plugin name>` header.
+
 ## Core API
 
 | Type | Description |
 |------|-------------|
 | `IConfig` | Interface with a `Validate()` method — implement on your config class |
 | `[PluginConfig]` | Attribute marking a property as the plugin's config (applied to the Config property) |
-| `plugin.ReloadConfig()` | Extension method to reload config from disk at runtime |
-| `plugin.GetConfigPath()` | Extension method to get the config file path |
+| `plugin.ReloadConfig()` | Extension method to reload config from disk at runtime. Returns `false` (rather than throwing) if the file fails to parse or validate |
+| `plugin.GetConfigPath()` | Extension method returning the config file path, or `null` if the file doesn't exist yet |
+
+Both extension methods throw `InvalidOperationException` if called before the config system is initialized (i.e. outside a loaded plugin).
 
 ## Basic Setup
 

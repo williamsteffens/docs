@@ -7,7 +7,12 @@ sidebar_label: "Sound"
 
 > **Namespace:** `DeadworksManaged.Api`
 
-Deadlock's audio system exposes one primary way to play sounds: **soundevents** — named entries in the game's audio manifest (e.g. `Mystical.Piano.AOE.Explode`, `Male.AnnTemp.Core_Damaged`). You cannot play raw `.vsnd` files directly.
+Deadlock plays sounds through **soundevents** — named entries in the game's audio manifest (e.g. `Mystical.Piano.AOE.Explode`, `Male.AnnTemp.Core_Damaged`). You cannot play raw `.vsnd` files directly.
+
+There are two ways to trigger a soundevent from a plugin:
+
+- **`CBaseEntity.EmitSound`** — plays a sound attached to an entity, for everyone in range.
+- **`Sounds` / `SoundEvent`** (namespace `DeadworksManaged.Api.Sounds`) — sends the soundevent directly to chosen recipients, with per-player targeting and GUID-based stop/update.
 
 ## Playing a Soundevent on an Entity
 
@@ -27,9 +32,70 @@ pawn.EmitSound("Damage.Send.Crit", pitch: 100, volume: 0.5f, delay: 0f);
 
 The sound plays in 3D space attached to the entity. Nearby players hear it with positional falloff.
 
-## Playing a Soundevent Globally (Any Position)
+## Sounds (Static Helpers)
 
-`EmitSound` requires an entity. For a sound that plays from an arbitrary world position, spawn a `point_soundevent` and let it clean itself up:
+For playback without an entity — or targeted at specific players — use the `Sounds` class (namespace `DeadworksManaged.Api.Sounds`):
+
+```csharp
+using DeadworksManaged.Api.Sounds;
+
+// Non-positional, heard by everyone (plays at each listener's own position)
+uint guid = Sounds.Play("Mystical.Piano.AOE.Warning", RecipientFilter.All);
+
+// Anchored to an entity's position, sent to one player only
+Sounds.PlayAt("Damage.Send.Crit", pawn.EntityIndex, RecipientFilter.Single(slot), volume: 0.5f);
+
+// Stop a playing sound by GUID
+SoundEvent.Stop(guid, RecipientFilter.All);
+```
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Play(string name, RecipientFilter recipients, float volume = 1, float pitch = 1)` | `uint` | Plays at each listener's own position (non-positional) |
+| `PlayAt(string name, int sourceEntityIndex, RecipientFilter recipients, float volume = 1, float pitch = 1)` | `uint` | Plays anchored to an entity's world position |
+
+Both return the soundevent **GUID**, which you can use to stop or update the sound later.
+
+## SoundEvent (Builder)
+
+`Sounds.Play`/`PlayAt` are shortcuts over the full `SoundEvent` builder:
+
+```csharp
+uint guid = new SoundEvent("UI.SomeSoundName")
+{
+    Volume = 0.8f,
+    Pitch = 1.2f,
+    SourceEntityIndex = pawn.EntityIndex,  // -1 (default) = listener's own position
+}
+.SetFloat("public.custom_param", 2f)
+.Emit(RecipientFilter.All);
+
+// Update a playing sound's params
+new SoundEvent("UI.SomeSoundName") { Volume = 0.2f }
+    .SetParams(guid, RecipientFilter.All);
+
+// Stop by GUID, or stop all instances by name for a source entity
+SoundEvent.Stop(guid, RecipientFilter.All);
+SoundEvent.StopByName("UI.SomeSoundName", pawn.EntityIndex, RecipientFilter.All);
+```
+
+| Member | Description |
+|--------|-------------|
+| `SoundEvent(string name)` | Create a builder for the named soundevent |
+| `Name` | Soundevent name from the `.vsndevts` manifest |
+| `SourceEntityIndex` | Entity the sound emits from; `-1` plays at the listener's own position |
+| `StartTime` | Optional start-time offset |
+| `Volume` / `Pitch` | Write-only shortcuts for `SetFloat("public.volume"/"public.pitch", ...)` |
+| `SetBool/SetInt32/SetUInt32/SetUInt64/SetFloat/SetFloat3(field, value)` | Set a typed field (chainable) |
+| `HasField` / `TryGetFloat` / `TryGetInt32` / `TryGetBool` | Inspect fields already set on the builder |
+| `Emit(RecipientFilter)` | Sends the sound; returns its GUID |
+| `SetParams(uint guid, RecipientFilter)` | Updates a playing sound's params with this builder's fields |
+| `Stop(uint guid, RecipientFilter)` | *Static* — stops a specific playing sound |
+| `StopByName(string name, int sourceEntityIndex, RecipientFilter)` | *Static* — stops all instances of a soundevent on a source entity |
+
+## Playing from a World Position (point_soundevent)
+
+`EmitSound` and `PlayAt` both anchor to an entity. For a sound that plays from an arbitrary world position, spawn a `point_soundevent` and let it clean itself up:
 
 ```csharp
 void PlayAt(string soundName, Vector3 position)

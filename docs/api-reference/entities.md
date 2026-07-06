@@ -145,7 +145,7 @@ entity.Teleport(
 entity.Teleport(null, null, new Vector3(0, 0, 1500));
 ```
 
-Reading velocity is straightforward (`entity.AbsVelocity`). Writing via the `AbsVelocity` setter works for simple cases, but for projectiles and anything driven by the physics path, **use `Teleport(velocity: …)`** — it's the only write that routes through the engine cleanly. See [Tracing — Projectile velocity is weird](tracing#projectile-velocity-is-weird) for the gory detail.
+Reading velocity is straightforward (`entity.AbsVelocity`). Writing via the `AbsVelocity` setter works for simple cases, but for projectiles and anything driven by the physics path, **use `Teleport(velocity: …)`** — it's the only write that routes through the engine cleanly.
 
 Camera and view angles are networked separately from entity angles. `Teleport(angles: …)` rotates the model, not the client's camera. For player view control see [Networking — Set client camera angles](networking#set-client-camera-angles).
 
@@ -300,18 +300,13 @@ _timers.Remove(entity);
 
 | Property | Type | Description |
 |---|---|---|
-| `Handle` | `IntPtr` | Raw pointer to the native object |
-| `IsValid` | `bool` | Non-null pointer check |
+| `Handle` | `nint` | Raw pointer to the native object |
+| `IsValid` | `bool` | Non-null pointer check (see note below) |
 
-:::warning `IsValid` is a null-check, not a liveness check
-`IsValid` only verifies the wrapper's pointer is non-null. It keeps returning `true` after the underlying entity has been `Remove()`d or a player disconnects. To check whether an entity still actually exists in the engine, round-trip through the handle table:
+:::info `IsValid` on entities is a real liveness check
+On the base `NativeEntity`, `IsValid` only verifies the wrapper's pointer is non-null. `CBaseEntity` **overrides** it to re-resolve the entity through the handle table (serial-number aware), so on entities `IsValid` correctly returns `false` after the entity has been `Remove()`d or a player disconnects. `Handle` likewise re-resolves on every access.
 
-```csharp
-bool IsAlive(CBaseEntity? e) =>
-    e != null && CBaseEntity.FromHandle(e.EntityHandle) != null;
-```
-
-Do this whenever you're holding an entity reference across ticks (timer callbacks, cached fields, collections).
+When holding an entity reference across ticks (timer callbacks, cached fields, collections), check `IsValid` — or `IsAlive` if you also need it to still be living — before touching it.
 :::
 
 ## See Also

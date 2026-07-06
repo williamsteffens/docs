@@ -17,7 +17,7 @@ Override in your plugin to intercept all damage on the server:
 public override HookResult OnTakeDamage(TakeDamageEvent ev)
 {
     // ev.Entity — the entity taking damage
-    // ev.DamageInfo — full damage descriptor
+    // ev.Info — full damage descriptor
 
     // Block damage to the Patrons
     if (ev.Entity.DesignerName == "npc_boss_tier3")
@@ -51,14 +51,14 @@ target.Hurt(100f, attacker: shooter);
 // Full control
 entity.Hurt(
     100f,           // damage amount
-    attacker,       // attacking entity (defaults to the victim if omitted)
+    attacker,       // attacking entity
     inflictor,      // entity that caused damage (weapon, projectile)
     ability,        // ability entity
-    damageType: 0   // DamageTypes_t bits (int)
+    damageType: 0   // damage type bits (int, see below)
 );
 ```
 
-> If `attacker` is null, the framework treats it as self-damage (attacker = victim). 
+> If `attacker` is null, it falls back to the `inflictor`; if that is also null, the victim itself is credited (self-damage). `Hurt` always sets `TakeDamageFlags.AllowSuicide`, so self-damage can kill.
 
 ### Advanced: CTakeDamageInfo
 
@@ -99,49 +99,51 @@ targetEntity.TakeDamage(damageInfo);
 | `Ability` | `CBaseEntity?` | The ability entity |
 | `Originator` | `CBaseEntity?` | The originator (usually null on creation) |
 
-## TakeDamageFlags_t
+## TakeDamageFlags
 
-Bit flags that modify how damage is applied (uint64):
+Managed `[Flags]` enum (`TakeDamageFlags : ulong`) that modifies how damage is applied. Commonly used values:
 
 | Flag | Value | Description |
 |------|-------|-------------|
-| `DFLAG_NONE` | 0 | No flags |
-| `DFLAG_SUPPRESS_HEALTH_CHANGES` | 1 | Don't change health |
-| `DFLAG_SUPPRESS_PHYSICS_FORCE` | 2 | No knockback |
-| `DFLAG_SUPPRESS_EFFECTS` | 4 | No visual effects |
-| `DFLAG_PREVENT_DEATH` | 8 | Cannot kill (clamp to 1HP) |
-| `DFLAG_FORCE_DEATH` | 16 | Guarantee kill |
-| `DFLAG_ALWAYS_GIB` | 32 | Always gib on death |
-| `DFLAG_NEVER_GIB` | 64 | Never gib on death |
-| `DFLAG_SUPPRESS_DAMAGE_MODIFICATION` | 256 | Ignore armor/resist |
-| `DFLAG_RADIUS_DMG` | 1024 | Area/splash damage |
-| `DFLAG_ALLOW_SUICIDE` | 262144 | Allow self-kill |
-| `DFLAG_SUPPRESS_KILL_CREDIT` | 4194304 | No kill credit |
-| `DFLAG_SUPPRESS_DEATH_CREDIT` | 8388608 | No death credit |
-| `DFLAG_HEAVY_MELEE` | 8589934592 | Heavy melee hit |
-| `DFLAG_LIGHT_MELEE` | 17179869184 | Light melee hit |
+| `None` | 0 | No flags |
+| `SuppressHealthChanges` | 0x1 | Don't change health |
+| `SuppressPhysicsForce` | 0x2 | No knockback |
+| `SuppressEffects` | 0x4 | No visual effects |
+| `PreventDeath` | 0x8 | Cannot kill (clamp to 1HP) |
+| `ForceDeath` | 0x10 | Guarantee kill |
+| `AlwaysGib` | 0x20 | Always gib on death |
+| `NeverGib` | 0x40 | Never gib on death |
+| `SuppressDamageModification` | 0x100 | Ignore armor/resist |
+| `RadiusDmg` | 0x400 | Area/splash damage |
+| `AllowSuicide` | 0x40000 | Allow self-kill |
+| `SuppressKillCredit` | 0x400000 | No kill credit |
+| `SuppressDeathCredit` | 0x800000 | No death credit |
+| `HeavyMelee` | 0x200000000 | Heavy melee hit |
+| `LightMelee` | 0x400000000 | Light melee hit |
+
+The enum has ~70 members in total (`IgnoreResistances`, `DoNotCrit`, `SuppressCritResistance`, `Ricochet`, `BonusDamage`, `IsHealthTransfer`, …) — see `TakeDamageFlags` in the SDK for the full list.
 
 :::tip
-Combine `DFLAG_FORCE_DEATH | DFLAG_ALLOW_SUICIDE` (16 + 262144 = 262160) for guaranteed kills.
+Combine `TakeDamageFlags.ForceDeath | TakeDamageFlags.AllowSuicide` for guaranteed kills.
 :::
 
-## DamageTypes_t
+## Damage Type Bits
 
-Bit flags for damage type classification:
+There is **no managed enum for damage types** — `Hurt(...)` and the `CTakeDamageInfo` constructor take the raw engine bits as an `int` (`damageType` parameter). Values from the game's `DamageTypes_t`, for reference:
 
-| Flag | Value | Description |
+| Engine flag | Value | Description |
 |------|-------|-------------|
-| `DMG_GENERIC` | 0 | Generic damage |
-| `DMG_BULLET` | 2 | Bullet damage |
-| `DMG_SLASH` | 4 | Slash/melee |
-| `DMG_BURN` | 8 | Fire/burn |
-| `DMG_FALL` | 32 | Fall damage |
-| `DMG_BLAST` | 64 | Explosion |
-| `DMG_SHOCK` | 256 | Shock/electric |
-| `DMG_HEADSHOT` | 524288 | Headshot |
-| `DMG_CRIT` | 1048576 | Critical hit |
-| `DMG_DOT` | 4194304 | Damage over time |
-| `DMG_LETHAL` | 16777216 | Lethal flag |
+| generic | 0 | Generic damage |
+| bullet | 2 | Bullet damage |
+| slash | 4 | Slash/melee |
+| burn | 8 | Fire/burn |
+| fall | 32 | Fall damage |
+| blast | 64 | Explosion |
+| shock | 256 | Shock/electric |
+| headshot | 524288 | Headshot |
+| crit | 1048576 | Critical hit |
+| dot | 4194304 | Damage over time |
+| lethal | 16777216 | Lethal flag |
 
 ## See Also
 

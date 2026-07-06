@@ -68,7 +68,7 @@ Block hero changes using `OnClientConCommand`:
 ```csharp
 public override HookResult OnClientConCommand(ClientConCommandEvent ev)
 {
-    if (ev.CommandName == "selecthero")
+    if (ev.Command == "selecthero")
     {
         return HookResult.Stop;
     }

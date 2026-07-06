@@ -42,8 +42,8 @@ var ray = new Ray_t();
 var filter = new CTraceFilter();
 // Configure filter...
 
-CGameTrace trace;
-Trace.TraceShape(start, end, ray, filter, out trace);
+var trace = CGameTrace.Create();
+Trace.TraceShape(start, end, ray, filter, ref trace);
 
 if (trace.DidHit)
 {

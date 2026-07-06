@@ -27,8 +27,17 @@ entity.AddModifier(
     KeyValues3? kv,         // Parameters (duration, etc.) (optional)
     CBaseEntity? caster,    // Entity that applied the modifier (optional)
     CBaseEntity? ability,   // Ability that caused the modifier (optional)
-    int team
+    int team                // (optional, defaults to 0)
 );
+```
+
+### Overriding Ability Property Values
+
+A second overload takes a `Dictionary<string, float>` of per-instance ability property overrides. Use it to apply modifiers that normally read values from a parent ability **without needing a real ability**, or to override the ability's default values. Property names match the VData's `m_vecAutoRegisterModifierValueFromAbilityPropertyName` entries:
+
+```csharp
+pawn.AddModifier("ability_doorman_bomb/debuff", kv: kv,
+    abilityValues: new() { ["SlowPercent"] = 100.0f });
 ```
 
 ## KeyValues3
@@ -95,6 +104,7 @@ if (pawn.ModifierProp.HasModifier("modifier_citadel_knockdown")) { /* ... */ }
 | `HasModifierState(EModifierState)` | `bool` | Returns `true` if state bit is set |
 | `HasModifier(string name)` | `bool` | Returns `true` if the entity has an active modifier with the given subclass VData name |
 | `Modifiers` | `IReadOnlyList<CBaseModifier>` | All active modifier instances on the entity |
+| `Owner` | `CBaseEntity?` | The entity this modifier property belongs to |
 
 ### Removing a modifier
 
@@ -155,7 +165,7 @@ Timer.Once(20.Seconds(), () =>
 
 ### AddAbility + AddModifier Pattern
 
-Many game modifiers read properties from their parent ability (e.g., `ModelScaleGrowth`, `ActiveMoveSpeedPenalty`). To apply these modifiers with full functionality, you must first add the ability, then pass the returned ability entity as the 4th parameter to `AddModifier`:
+Many game modifiers read properties from their parent ability (e.g., `ModelScaleGrowth`, `ActiveMoveSpeedPenalty`). The simplest way to supply those values is the `abilityValues` overload shown above — no real ability needed. Alternatively, you can add the actual ability first and pass the returned ability entity as the 4th parameter to `AddModifier`:
 
 ```csharp
 // 1. Add the item ability — returns the ability entity

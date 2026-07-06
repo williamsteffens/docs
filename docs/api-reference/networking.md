@@ -40,8 +40,12 @@ NetMessages.HookOutgoing<CCitadelUserMsg_ChatMsg>(ctx =>
     // ctx.Recipients — modifiable recipient set
     // ctx.MessageId — numeric message ID
 
-    // Modify recipients
-    ctx.Recipients.Remove(someSlot);
+    // Modify recipients. RecipientFilter is a struct, so mutate a copy
+    // and assign it back — calling Remove on ctx.Recipients directly
+    // would only change a temporary copy.
+    var recipients = ctx.Recipients;
+    recipients.Remove(someSlot);
+    ctx.Recipients = recipients;
 
     return HookResult.Handled;
 });
@@ -70,7 +74,7 @@ NetMessages.UnhookIncoming<CCitadelUserMsg_ChatMsg>(myHandler);
 
 ### Using the Attribute (Alternative)
 
-For chat message hooks, you can also use the `[NetMessageHandler]` attribute:
+Any registered message type can also be hooked with the `[NetMessageHandler]` attribute — the direction is inferred from the parameter type (`OutgoingMessageContext<T>` or `IncomingMessageContext<T>`):
 
 ```csharp
 [NetMessageHandler]
@@ -100,6 +104,8 @@ Bitmask of player slots that should receive a message.
 | `Remove(int slot)` | Removes a player slot |
 | `HasRecipient(int slot)` | Returns `true` if slot is included |
 
+All slot parameters are **0-based player slots** (`controller.Slot`, which equals `EntityIndex - 1`) — not entity indices.
+
 ### Properties
 
 | Property | Type | Description |
@@ -113,7 +119,7 @@ var filter = new RecipientFilter();
 foreach (var controller in Players.GetAll())
 {
     if (ShouldReceive(controller))
-        filter.Add(controller.EntityIndex);
+        filter.Add(controller.Slot);
 }
 NetMessages.Send(msg, filter);
 ```

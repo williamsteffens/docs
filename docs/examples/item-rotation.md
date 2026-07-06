@@ -65,8 +65,8 @@ public class ItemRotationPlugin : DeadworksPluginBase {
             if (pawn == null) continue;
 
             int setIndex = i % _sets.Length;
-            _playerSet[controller.EntityIndex] = setIndex;
-            GiveSet(pawn, _sets[setIndex], controller.EntityIndex, announce: false);
+            _playerSet[controller.Slot] = setIndex;
+            GiveSet(pawn, _sets[setIndex], controller.Slot, announce: false);
             i++;
         }
 
@@ -82,7 +82,7 @@ public class ItemRotationPlugin : DeadworksPluginBase {
         foreach (var controller in Players.GetAll()) {
             var pawn = controller.GetHeroPawn();
             if (pawn == null) continue;
-            int slot = controller.EntityIndex;
+            int slot = controller.Slot;
 
             // Remove the old set
             if (_playerSet.TryGetValue(slot, out int oldIndex)) {

@@ -24,10 +24,12 @@ var controller = Players.FromSlot(slotIndex);
 
 | Member | Type | Description |
 |--------|------|-------------|
-| `MaxSlots` | `int` (const) | Maximum number of player slots on the server |
-| `GetAll()` | `IEnumerable<CCitadelPlayerController>` | All connected controllers |
+| `MaxSlot` | `int` (const) | Maximum number of player slots on the server (31) |
+| `GetAll()` | `IEnumerable<CCitadelPlayerController>` | All fully connected controllers |
+| `GetAllControllers()` | `IEnumerable<CCitadelPlayerController>` | All existing controllers, including ones not fully connected |
 | `GetAllPawns()` | `IEnumerable<CCitadelPlayerPawn>` | Hero pawn for every connected player that has one |
 | `FromSlot(int)` | `CCitadelPlayerController?` | Controller in given slot, or `null` |
+| `IsConnected(int slot)` | `bool` | Whether the given slot has a fully connected player |
 
 ## CCitadelPlayerController
 
@@ -47,14 +49,13 @@ Deadlock-specific player controller. Extends `CBasePlayerController`.
 
 ### Reading the SteamID
 
-SteamID is not yet a first-class property on the controller. Use `ClientConnectEvent.SteamId` during connection, or a schema accessor on the live controller:
+The SteamID64 is available as a first-class property on the controller (inherited from `CBasePlayerController`):
 
 ```csharp
-private static readonly SchemaAccessor<ulong> _steamID =
-    new("CBasePlayerController"u8, "m_steamID"u8);
-
-ulong steamId = _steamID.Get(controller.Handle);
+ulong steamId = controller.PlayerSteamId;
 ```
+
+During connection you can also use `ClientConnectEvent.SteamId`.
 
 ### Properties
 
@@ -84,7 +85,10 @@ Base player controller entity. Manages the link between a player slot and their 
 
 | Member | Type | Description |
 |--------|------|-------------|
+| `Slot` | `int` | 0-based player slot index (`EntityIndex - 1`) |
 | `PlayerName` | `string` | Player display name (get/set, char[128] inline buffer) |
+| `PlayerSteamId` | `ulong` | The player's SteamID64 |
+| `Pawn` | `CBasePlayerPawn?` | The controller's current pawn |
 | `SetPawn(pawn, retainOldPawnTeam, copyMovementState, allowTeamMismatch, preserveMovementState)` | `void` | Assigns a new pawn, optionally transferring team and movement state |
 
 ## CCitadelPlayerPawn
@@ -122,7 +126,7 @@ The in-game physical representation of a player (the hero). Extends `CBasePlayer
 | `ResetHero(bool resetAbilities = true)` | `void` | Full reset: clears loadout, removes items, re-adds starting abilities |
 | `RemoveAbility(string abilityName)` | `bool` | Removes ability by internal name. Returns `true` on success |
 | `AddAbility(string abilityName, ushort slot)` | `CBaseEntity?` | Adds ability to given slot. Returns the new ability entity |
-| `AddItem(string itemName, int upgradeTier = -1)` | `CBaseEntity?` | Gives an item. `upgradeTier` -1 for base version |
+| `AddItem(string itemName, bool enhanced = false)` | `CBaseEntity?` | Gives an item. Pass `true` for the enhanced version |
 | `RemoveItem(string itemName)` | `bool` | Removes item directly (no refund). Calls RemoveAbility internally |
 | `SellItem(string itemName, bool fullRefund, bool forceSellPrice)` | `bool` | Sells item with gold refund |
 | `GetCurrency(ECurrencyType type)` | `int` | Get current currency amount |
@@ -178,33 +182,37 @@ foreach (var ability in pawn.AbilityComponent.Abilities) {
 | `AbilitySlot` | Which slot the ability occupies |
 | `IsSignature` / `IsActiveItem` / `IsInnate` / `IsWeapon` / `IsItem` | Slot-category shortcuts |
 
-### EAbilitySlots_t
+### EAbilitySlot
+
+Managed enum (`EAbilitySlot : ushort`) matching the game's `EAbilitySlots_t`:
 
 | Value | Raw | Description |
 |-------|-----|-------------|
-| `ESlot_Signature_1` | 0 | Signature ability 1 |
-| `ESlot_Signature_2` | 1 | Signature ability 2 |
-| `ESlot_Signature_3` | 2 | Signature ability 3 |
-| `ESlot_Signature_4` | 3 | Signature ability 4 (ultimate) |
-| `ESlot_ActiveItem_1` | 4 | Active item slot 1 |
-| `ESlot_ActiveItem_2` | 5 | Active item slot 2 |
-| `ESlot_ActiveItem_3` | 6 | Active item slot 3 |
-| `ESlot_ActiveItem_4` | 7 | Active item slot 4 |
-| `ESlot_Ability_Held` | 8 | Held ability |
-| `ESlot_Ability_ZipLine` | 9 | Zipline ability |
-| `ESlot_Ability_Mantle` | 10 | Mantle ability |
-| `ESlot_Ability_ClimbRope` | 11 | Climb rope ability |
-| `ESlot_Ability_Jump` | 12 | Jump ability |
-| `ESlot_Ability_Slide` | 13 | Slide ability |
-| `ESlot_Ability_Teleport` | 14 | Teleport ability |
-| `ESlot_Ability_ZipLineBoost` | 15 | Zipline boost |
-| `ESlot_Ability_Innate_1` | 17 | Innate ability 1 |
-| `ESlot_Ability_Innate_2` | 18 | Innate ability 2 |
-| `ESlot_Ability_Innate_3` | 19 | Innate ability 3 |
-| `ESlot_Weapon_Secondary` | 20 | Secondary weapon |
-| `ESlot_Weapon_Primary` | 21 | Primary weapon |
-| `ESlot_Weapon_Melee` | 22 | Melee weapon |
-| `ESlot_None` | 23 | No slot |
+| `Signature1` | 0 | Signature ability 1 |
+| `Signature2` | 1 | Signature ability 2 |
+| `Signature3` | 2 | Signature ability 3 |
+| `Signature4` | 3 | Signature ability 4 (ultimate) |
+| `ActiveItem1` | 4 | Active item slot 1 |
+| `ActiveItem2` | 5 | Active item slot 2 |
+| `ActiveItem3` | 6 | Active item slot 3 |
+| `ActiveItem4` | 7 | Active item slot 4 |
+| `Ability_Held` | 8 | Held ability |
+| `Ability_ZipLine` | 9 | Zipline ability |
+| `Ability_Mantle` | 10 | Mantle ability |
+| `Ability_ClimbRope` | 11 | Climb rope ability |
+| `Ability_Jump` | 12 | Jump ability |
+| `Ability_Slide` | 13 | Slide ability |
+| `Ability_Teleport` | 14 | Teleport ability |
+| `Ability_ZipLineBoost` | 15 | Zipline boost |
+| `Cosmetic1` | 16 | Cosmetic slot |
+| `Innate1` | 17 | Innate ability 1 |
+| `Innate2` | 18 | Innate ability 2 |
+| `Innate3` | 19 | Innate ability 3 |
+| `WeaponSecondary` | 20 | Secondary weapon |
+| `WeaponPrimary` | 21 | Primary weapon |
+| `WeaponMelee` | 22 | Melee weapon |
+| `None` | 23 | No slot |
+| `Invalid` | 0xFFFF | Invalid slot |
 
 ## CCitadelAbilityComponent
 
@@ -225,11 +233,13 @@ float latchVal = stamina.LatchValue;   // e.g. 3
 
 | Property | Type | Read | Write | Description |
 |----------|------|------|-------|-------------|
-| `CurrentValue` | `float` | Yes | **No** | Current stamina value. Writing is overridden by the engine next tick |
-| `MaxValue` | `float` | Yes | **No** | Maximum stamina value |
-| `PrevRegenRate` | `float` | Yes | **No** | Stamina regeneration rate per second |
-| `LatchTime` | `float` | Yes | **No** | Server time of last latch event |
-| `LatchValue` | `float` | Yes | **No** | Latch value |
+| `CurrentValue` | `float` | Yes | Yes* | Current stamina value |
+| `MaxValue` | `float` | Yes | Yes* | Maximum stamina value |
+| `PrevRegenRate` | `float` | Yes | Yes* | Stamina regeneration rate per second |
+| `LatchTime` | `float` | Yes | Yes* | Server time of last latch event |
+| `LatchValue` | `float` | Yes | Yes* | Latch value |
+
+\* All properties have setters, but the engine recomputes stamina from the latch state each tick — a bare write to `CurrentValue` is overwritten. To change stamina durably, write `LatchValue`/`LatchTime` together with `CurrentValue` (see the stamina example in [First Plugin](../getting-started/first-plugin)).
 
 ## Ability Entities
 
@@ -366,15 +376,15 @@ ECurrencySource has 45 values total. Only some are listed above.
 
 ## LifeState
 
-Entity life-cycle state (`LifeState_t`):
+Entity life-cycle state (managed enum `LifeState : uint`):
 
 | Value | Raw | Description |
 |-------|-----|-------------|
-| `LIFE_ALIVE` | 0 | Entity is alive |
-| `LIFE_DYING` | 1 | Entity is in the dying process |
-| `LIFE_DEAD` | 2 | Entity is dead |
-| `LIFE_RESPAWNABLE` | 3 | Entity can respawn |
-| `LIFE_RESPAWNING` | 4 | Entity is respawning |
+| `Alive` | 0 | Entity is alive |
+| `Dying` | 1 | Entity is in the dying process |
+| `Dead` | 2 | Entity is dead |
+| `Respawnable` | 3 | Entity can respawn |
+| `Respawning` | 4 | Entity is respawning |
 
 ## See Also
 

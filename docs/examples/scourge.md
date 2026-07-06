@@ -35,10 +35,10 @@ Player takes damage
 
 ## Configuration
 
-Full JSON config with validation:
+Full JSON config with validation, using `IConfig` and `[PluginConfig]`:
 
 ```csharp
-public class ScourgeConfig : BasePluginConfig
+public class ScourgeConfig : IConfig
 {
     [JsonPropertyName("DurationSeconds")]
     public float DurationSeconds { get; set; } = 15f;
@@ -54,19 +54,24 @@ public class ScourgeConfig : BasePluginConfig
 
     [JsonPropertyName("DamageSoundVolume")]
     public float DamageSoundVolume { get; set; } = 0.1f;
+
+    public void Validate()
+    {
+        if (DurationSeconds < 0.1f) DurationSeconds = 0.1f;
+        if (DamageIntervalMs < 50) DamageIntervalMs = 50;
+        if (DamageFraction <= 0f) DamageFraction = 0.005f;
+        DamageSoundVolume = Math.Clamp(DamageSoundVolume, 0f, 1f);
+    }
 }
 ```
 
-### Config Validation in OnConfigParsed
+`Validate()` runs automatically after the config is loaded or reloaded. The plugin exposes the config through a `[PluginConfig]` property:
 
 ```csharp
-public void OnConfigParsed(ScourgeConfig config)
+public class ScourgePlugin : DeadworksPluginBase
 {
-    if (config.DurationSeconds < 0.1f) config.DurationSeconds = 0.1f;
-    if (config.DamageIntervalMs < 50) config.DamageIntervalMs = 50;
-    if (config.DamageFraction <= 0f) config.DamageFraction = 0.005f;
-    config.DamageSoundVolume = Math.Clamp(config.DamageSoundVolume, 0f, 1f);
-    Config = config;
+    [PluginConfig]
+    public ScourgeConfig Config { get; set; } = new();
 }
 ```
 
@@ -166,7 +171,7 @@ public override void OnUnload()
 
 | Feature | Reference |
 |---------|-----------|
-| `IPluginConfig<T>`, `OnConfigParsed` | [Configuration](../api-reference/configuration) |
+| `IConfig`, `[PluginConfig]` | [Configuration](../api-reference/configuration) |
 | `OnTakeDamage` | [Damage](../api-reference/damage) |
 | `Timer.Sequence`, `IStep` | [Timers](../api-reference/timers) |
 | `EntityData<IHandle>` | [Entities](../api-reference/entities) |

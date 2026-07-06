@@ -91,7 +91,7 @@ var text = CBaseEntity.CreateByDesignerName("point_worldtext");
 if (text == null) return;
 
 var ekv = new CEntityKeyValues();
-ekv.SetString("message", controller.PlayerName);
+ekv.SetString("message_text", controller.PlayerName);
 ekv.SetInt("font_size", 128);
 ekv.SetString("font_name", "Comic Sans MS");
 ekv.SetFloat("world_units_per_pixel", 0.15f);
@@ -103,12 +103,17 @@ ekv.SetInt("reorient_mode", 1);        // 1 = always face the camera (around up 
 ekv.SetInt("fullbright", 1);
 text.Spawn(ekv);
 
+// Belt and braces: also push the text via the SetMessage input after spawn,
+// which is what CPointWorldText.Create does internally.
+text.AcceptInput("SetMessage", value: controller.PlayerName);
+
 text.Teleport(pawn.Position + new Vector3(0, 0, 96), new Vector3(0, 180, 90));
 text.SetParent(pawn);
 ```
 
 A few gotchas worth knowing before you burn hours on them:
 
+- **The EKV key is `message_text`, not `message`.** The SDK's own `Create` helper sets `message_text` and additionally fires `SetMessage` after spawn.
 - **The EKV key is `font_name`, not `font`.** Passing `font` silently does nothing.
 - **`fullbright: 1` is required for the color to show unfiltered** — without it, text is tinted by world lighting and often reads as dim gray indoors.
 - **`reorient_mode: 1`** rotates the text around its up axis so it faces each viewer's camera. Mode `0` is a fixed-orientation billboard.
@@ -127,7 +132,7 @@ public override void OnClientFullConnect(ClientFullConnectEvent args)
 
     var text = CBaseEntity.CreateByDesignerName("point_worldtext");
     var ekv = new CEntityKeyValues();
-    ekv.SetString("message", args.Controller.PlayerName);
+    ekv.SetString("message_text", args.Controller.PlayerName);
     ekv.SetInt("font_size", 128);
     ekv.SetFloat("world_units_per_pixel", 0.12f);
     ekv.SetInt("justify_horizontal", 1);
@@ -135,6 +140,7 @@ public override void OnClientFullConnect(ClientFullConnectEvent args)
     ekv.SetInt("fullbright", 1);
     ekv.SetColor("color", 255, 255, 255, 255);
     text.Spawn(ekv);
+    text.AcceptInput("SetMessage", value: args.Controller.PlayerName);
 
     text.Teleport(pawn.Position + new Vector3(0, 0, 96), new Vector3(0, 180, 90));
     text.SetParent(pawn);

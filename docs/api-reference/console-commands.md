@@ -22,7 +22,7 @@ If you only want the console version and do not want chat commands, set `Console
 [Command("heal", ConsoleOnly = true)]
 public void CmdHeal()
 {
-    Server.PrintToConsole("Healing command ran.");
+    Console.WriteLine("Healing command ran.");
 }
 ```
 

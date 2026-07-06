@@ -71,7 +71,7 @@ Override `OnChatMessage` to intercept all chat:
 ```csharp
 public override HookResult OnChatMessage(ChatMessage msg)
 {
-    Console.WriteLine($"[Chat] Slot {msg.SenderSlot}: {msg.Text}");
+    Console.WriteLine($"[Chat] Slot {msg.SenderSlot}: {msg.ChatText}");
     return HookResult.Continue;
 }
 ```
@@ -84,7 +84,7 @@ Hook outgoing chat messages for custom formatting:
 [NetMessageHandler]
 public HookResult OnChatMsgOutgoing(OutgoingMessageContext<CCitadelUserMsg_ChatMsg> ctx)
 {
-    var sender = Players.FromSlot(ctx.Message.SenderSlot);
+    var sender = Players.FromSlot(ctx.Message.PlayerSlot);
     if (sender == null) return HookResult.Handled;
 
     // Send personalized chat to each recipient
@@ -93,9 +93,9 @@ public HookResult OnChatMsgOutgoing(OutgoingMessageContext<CCitadelUserMsg_ChatM
         var personalMsg = new CCitadelUserMsg_ChatMsg
         {
             // Customize per-recipient
-            Text = $"[{sender.Name}]: {ctx.Message.Text}"
+            Text = $"[{sender.PlayerName}]: {ctx.Message.Text}"
         };
-        NetMessages.Send(personalMsg, RecipientFilter.Single(controller.EntityIndex));
+        NetMessages.Send(personalMsg, RecipientFilter.Single(controller.Slot));
     }
 
     // Block the original message
@@ -112,8 +112,10 @@ Play sound effects on entities:
 pawn.EmitSound("Mystical.Piano.AOE.Warning");
 
 // With parameters
-pawn.EmitSound("Damage.Send.Crit", pitch: 100, volume: 0.1f, soundLevel: 75f);
+pawn.EmitSound("Damage.Send.Crit", pitch: 100, volume: 0.1f, delay: 0f);
 ```
+
+For global or positional playback without an entity, see the `Sounds`/`SoundEvent` API in [Sound](../api-reference/sound).
 
 ## World Text
 
@@ -157,7 +159,7 @@ var filter = new RecipientFilter();
 foreach (var controller in Players.GetAll())
 {
     if (IsEligible(controller))
-        filter.Add(controller.EntityIndex);
+        filter.Add(controller.Slot);
 }
 NetMessages.Send(msg, filter);
 ```
@@ -169,8 +171,8 @@ var filter = new RecipientFilter();
 foreach (var controller in Players.GetAll())
 {
     var pawn = controller.GetHeroPawn();
-    if (pawn?.TeamNum == 2)  // Team 0
-        filter.Add(controller.EntityIndex);
+    if (pawn?.TeamNum == 2)
+        filter.Add(controller.Slot);
 }
 NetMessages.Send(msg, filter);
 ```

@@ -72,8 +72,12 @@ This is useful when you want to change built-in game settings in `OnStartupServe
 |--------|---------|-------------|
 | `Find(string name)` | `ConVar?` | Find an existing ConVar |
 | `Create(string name, string defaultValue, string description = "", bool serverOnly = false)` | `ConVar?` | Create a new ConVar |
+| `GetInt()` | `int` | Read the value as an integer |
+| `GetFloat()` | `float` | Read the value as a float |
+| `GetString()` | `string` | Read the value as a string |
 | `SetInt(int value)` | `void` | Set the value as an integer |
 | `SetFloat(float value)` | `void` | Set the value as a float |
+| `IsValid` | `bool` | Whether the underlying native ConVar is alive |
 
 ```csharp
 public override void OnStartupServer()
