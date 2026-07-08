@@ -81,7 +81,7 @@ The full list of Source 2 events shipped by Deadlock is available at [SteamTrack
 public HookResult OnAbility(GameEvent ev)
 {
     var name = ev.GetString("abilityname", "");
-    if (!name.StartsWith("ability_melee")) return HookResult.Continue;
+    if (!name.StartsWith("citadel_ability_melee")) return HookResult.Continue;
 
     // annotation tells heavy vs light melee (event keys are case-sensitive)
     var kind = ev.GetString("annotation", ""); // "heavy_melee" or "light_melee"
